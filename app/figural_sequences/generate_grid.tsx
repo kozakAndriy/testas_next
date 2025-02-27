@@ -129,7 +129,9 @@ export class GridGenerator {
         const grid: Grid = this.grids[gridI];
 
         if (grid[figure.row][figure.col] !== null) return false;
-        figure.move();
+        if (gridI != 0) {
+            figure.move();
+        }
         if (grid[figure.row][figure.col] !== null) return false;
 
         grid[figure.row][figure.col] = figure.createDisplayable();

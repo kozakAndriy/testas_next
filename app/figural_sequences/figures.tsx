@@ -93,7 +93,7 @@ export class DisplayableFigure {
         return this.base.display(this.color, this.rotation);
     }
 }
-const unprogressiveChance = 1;
+const unprogressiveChance = 0.8;
 
 export class Figure {
     base: FigureBase;

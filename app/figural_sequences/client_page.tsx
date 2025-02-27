@@ -56,7 +56,7 @@ export default function FiguralSequences() {
         init();
     }
 
-    return <main className="flex justify-center items-center flex-col mx-auto max-w-[1200]">
+    return <main className="flex justify-center items-center flex-col mx-auto max-w-[1200px]">
         <section className="flex flex-row justify-evenly items-center w-full">
             {
                 grids.map((grid, gridI) => displayGrid(grid, gridI, true))

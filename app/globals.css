@@ -10,20 +10,6 @@ input {
   border: 3px solid white;
 }
 
-/* 
-td {
-  border: 1px solid slategray;
-  margin: 2px;
-  font-size: min(7vw, 40px);
-  background-color: white;
-  width: min(15vw, 100px);
-  height: min(15vw, 100px);
-  text-align: center;
-} */
-
-/* 
----break--- */
-
 @layer base {
   :root {
     --background: 0 0% 100%;

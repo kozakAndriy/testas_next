@@ -63,7 +63,7 @@ export default function FiguralSequences() {
             }
         </section>
 
-        <section className="flex flex-row justify-evenly items-center w-full">
+        <section className="flex flex-row justify-evenly items-center w-full pb-[500px]">
             {
                 fillergrids4.map((grid, gridI) => displayGrid(grid, gridI, false))
             }
@@ -78,7 +78,7 @@ export default function FiguralSequences() {
             }
         </section>
 
-        <section className="space-x-5 space-y-2 bg-white p-5 w-full shadow-lg absolute bottom-0">
+        <section className="space-x-5 space-y-2 bg-white/60 p-5 w-full shadow-lg fixed bottom-0">
             <div className="flex justify-center space-x-5">
                 <Button onClick={submit}>Submit</Button>
                 <Button onClick={reset} variant='destructive'>Reset</Button>
@@ -95,9 +95,6 @@ export default function FiguralSequences() {
                 <Slider min={1} max={maxObjectCount} defaultValue={[defaultObjectCount]} step={1} onValueChange={(count) => {
                     setObjectCount(count[0]);
                 }} />
-            </div>
-            <div>
-
             </div>
         </section>
 

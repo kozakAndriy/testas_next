@@ -1,5 +1,5 @@
 'use client'
-import { randomOf, shuffle } from "../utils";
+import { contains, randomOf, shuffle } from "../utils";
 import { FigureBase } from "./bases";
 import { WrongAnswer } from "./generate_grid";
 
@@ -11,65 +11,123 @@ const rotationPatterns: Pattern[] = [[0], [0, 90, 180, 270], [0, 270, 180, 90], 
 const colors: string[] = ["#007FFF", "#39FF14", "#FF5F00", "#FF1493", "#FFD700", "#DC143C", "#30D5C8", "#8000FF", "#32CD32", "#00FFFF"];
 const colorPatterns: Pattern[] = [[0], [0, 1], [0, 1, 2]];
 
-class MovementPattern {
+interface MovementEngine {
+    move(n: number): Cord;
+    clone(): MovementEngine;
+    getCords(): Cord;
+}
+
+
+class CircleMovementEngine implements MovementEngine {
+    path: Cord[];
+    pathI: number = -1;
+
+    constructor(availableStartCords: Cord[] | null, path: Cord[], pathI: number | null = null) {
+        if (pathI == null) {
+            let i: number = Math.floor(Math.random() * availableStartCords!.length);
+            let [row, col] = availableStartCords![i];
+
+            for (let j = 0; j < path.length; j++) {
+                if (path[j][0] && row && path[j][1] == col) {
+                    this.pathI = j;
+                    break;
+                }
+            }
+        }
+        else {
+            this.pathI = pathI!;
+        }
+
+        this.path = path.map(e => e).reverse();
+
+        this.path = path;
+    }
+    getCords(): Cord {
+        return this.path[this.pathI];
+    }
+    clone(): MovementEngine {
+        return new CircleMovementEngine(null, this.path, this.pathI);
+    }
+    move(n: number): Cord {
+        this.pathI = (this.pathI + n) % this.path.length;
+        return this.getCords();
+    }
+}
+class BounceMovementEngine implements MovementEngine {
     availableStartCords: Cord[];
     availableCords: Cord[];
     changePattern: Cord;
-    outOfBoundBehavior: OutOfBoundBehavior;
 
-    constructor(asc: Cord[], ac: Cord[], cp: Cord, oobb: OutOfBoundBehavior) {
-        this.availableStartCords = asc;
-        this.availableCords = ac;
-        this.changePattern = cp;
-        this.outOfBoundBehavior = oobb
+    row: number;
+    col: number;
+
+    constructor(availableStartCords: Cord[], availableCords: Cord[], changePattern: Cord, row: number | null = null, col: number | null = null) {
+        this.availableStartCords = availableStartCords;
+        this.availableCords = availableCords;
+        this.changePattern = changePattern;
+
+        if (row == null && col == null) {
+            [this.row, this.col] = randomOf(this.availableStartCords);
+        }
+        else {
+            this.row = row!;
+            this.col = col!;
+        }
+    }
+    getCords() {
+        return [this.row, this.col] as Cord;
+    }
+    clone(): BounceMovementEngine {
+        return new BounceMovementEngine(this.availableStartCords, this.availableCords, this.changePattern, this.row, this.col);
+    }
+    move(n: number): Cord {
+        for (let i = 0; i < n; i++) {
+            this.step();
+        }
+        return [this.row, this.col];
+    }
+    step() {
+        const [dr, dc] = this.changePattern;
+        let canAccess = contains(this.row + dr, this.col + dc, this.availableCords);
+        if (!canAccess) {
+            this.changePattern[0] *= -1;
+            this.changePattern[1] *= -1;
+
+            this.step();
+            return;
+        }
+        this.row += this.changePattern[0];
+        this.col += this.changePattern[1];
     }
 }
-enum OutOfBoundBehavior {
-    Invert,
-    Rotate,
-}
-const movementByDirection: Cord[] = [
-    [-1, 0], // 0 = up
-    [0, 1], // 1 = right
-    [1, 0], // 2 = down
-    [0, -1] // 3 = left
-]
-const movementPatterns = [
-    new MovementPattern( // diagonal bl <-> tr
+const movementEngines: MovementEngine[] = [
+    new BounceMovementEngine( // diagonal bl <-> tr
         [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
         [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
         [-1, 1],
-        OutOfBoundBehavior.Invert
     ),
-    new MovementPattern( // diagonal tl <-> br
+    new BounceMovementEngine( // diagonal tl <-> br
         [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
         [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
         [1, 1],
-        OutOfBoundBehavior.Invert
     ),
-    new MovementPattern( // left <-> right
+    new BounceMovementEngine( // left <-> right
         [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
         [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
         [0, 1],
-        OutOfBoundBehavior.Invert,
     ),
-    new MovementPattern( // top <-> bottom
+    new BounceMovementEngine( // top <-> bottom
         [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
         [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
         [1, 0],
-        OutOfBoundBehavior.Invert,
     ),
-    new MovementPattern( // small circle
+    new CircleMovementEngine( // small circle
         [[1, 1], [1, 2], [2, 1], [2, 2]],
-        [[1, 1], [1, 2], [2, 1], [2, 2]],
-        [0, 1],
-        OutOfBoundBehavior.Rotate
+        [[1, 1], [1, 2], [2, 2], [2, 1]],
     ),
-    new MovementPattern( // big circle
+    new CircleMovementEngine( // big circle
         [[0, 1], [0, 2], [1, 0], [1, 3], [2, 0], [2, 3], [3, 1], [3, 2]], // cant start on edges because then it'll be undistinguishable from top-down
-        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 3], [2, 0], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
-        [0, 1],
-        OutOfBoundBehavior.Rotate
+        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [3, 2], [3, 1], [3, 0], [2, 0], [1, 0],],
     ),
 ];
 
@@ -94,36 +152,33 @@ export class DisplayableFigure {
     }
 }
 const unprogressiveChance = 0.8;
+const colorlessChance = 0.65;
+const rotationlessChance = 0.65;
 
 export class Figure {
     base: FigureBase;
 
     colorPattern: number[];
     rotationPattern: number[];
-    movementPattern: MovementPattern;
+
+    movementEngine: MovementEngine;
+    progressive: number = 0;
 
     colors: string[];
 
     rotationPatternIndex: number = 0;
     colorPatternIndex: number = 0;
 
-    // movement
-    row: number;
-    col: number;
-    direction: number = 0;
-    progressive: number = 0;
-
     constructor(figureBase: FigureBase) {
         this.base = figureBase;
-        this.progressive = Math.random() >= unprogressiveChance ? 1 : 0; // TODO
-        this.colors = this.base.canChangeColor ? shuffle([...colors]).splice(3) : [randomOf(colors)];
-        this.rotationPattern = this.base.canRotate ? randomOf(rotationPatterns) : rotationPatterns[0];
-        this.colorPattern = randomOf(colorPatterns);
-        this.movementPattern = randomOf(movementPatterns);
+        this.progressive = Math.random() >= unprogressiveChance ? 1 : 0;
 
-        const startingPosition = randomOf(this.movementPattern.availableStartCords);
-        this.row = startingPosition[0];
-        this.col = startingPosition[1];
+        const doesChangeColor = (this.base.canChangeColor && Math.random() >= colorlessChance);
+        this.colorPattern = doesChangeColor ? randomOf(colorPatterns.slice(1)) : colorPatterns[0];
+        this.colors = doesChangeColor ? shuffle([...colors]).splice(3) : ["#36454F"];
+
+        this.rotationPattern = (this.base.canRotate && Math.random() >= rotationlessChance) ? randomOf(rotationPatterns.slice(1)) : rotationPatterns[0];
+        this.movementEngine = randomOf(movementEngines);
     }
     getColor(): string {
         return this.colors[this.colorPattern[this.colorPatternIndex]];
@@ -131,45 +186,17 @@ export class Figure {
     getRotation(): number {
         return this.rotationPattern[this.rotationPatternIndex];
     }
-    step() {
-        const mp = this.movementPattern;
-        const [dr, dc] = mp.changePattern;
-        const newRow = this.row + dr;
-        const newCol = this.col + dc;
 
-        let canAccess = false;
-        for (const [avR, avC] of mp.availableCords) {
-            if (avR == newRow && avC == newCol) {
-                canAccess = true;
-                break;
-            }
+    move(moves: number | null = null) {
+        if (moves == null) {
+            moves = this.progressive == 0 ? 1 : this.progressive;
         }
-
-        if (!canAccess) {
-            switch (mp.outOfBoundBehavior) {
-                case OutOfBoundBehavior.Invert:
-                    mp.changePattern[0] *= -1;
-                    mp.changePattern[1] *= -1;
-                    break;
-                case OutOfBoundBehavior.Rotate:
-                    this.direction = (this.direction + 1) % 4;
-                    mp.changePattern = movementByDirection[this.direction];
-                    break;
-            }
-            this.step();
-            return;
-        }
-        this.row += mp.changePattern[0];
-        this.col += mp.changePattern[1];
-    }
-    move() {
-        const moves = this.progressive == 0 ? 1 : this.progressive;
 
         this.colorPatternIndex = (this.colorPatternIndex + 1) % this.colorPattern.length; // don't apply progressive to colors
         this.rotationPatternIndex = (this.rotationPatternIndex + moves) % this.rotationPattern.length;
 
         for (let i = 0; i < moves; i++) {
-            this.step();
+            this.movementEngine.move(moves);
         }
         if (this.progressive != 0) {
             this.progressive++;
@@ -184,19 +211,14 @@ export class Figure {
     generateWrongAnswers(gridI: number): WrongAnswer[] {
         const wrongAnswers = [];
 
-        const actualRow = this.row;
-        const actualCol = this.col;
-        const actualDirection = this.direction;
-        const actualChangePattern: Cord = this.movementPattern.changePattern.map(e => e) as Cord;
+        const actualMovementEngine = this.movementEngine.clone();
         const actualProgressive = this.progressive;
         const actualColorIndex = this.colorPatternIndex;
         const actualRotationIndex = this.rotationPatternIndex;
+        const [actualRow, actualCol] = this.movementEngine.getCords();
 
         const resetChanges = () => {
-            this.row = actualRow;
-            this.col = actualCol;
-            this.direction = actualDirection;
-            this.movementPattern.changePattern = actualChangePattern;
+            this.movementEngine = actualMovementEngine.clone();
             this.progressive = actualProgressive;
             this.colorPatternIndex = actualColorIndex;
             this.rotationPatternIndex = actualRotationIndex;
@@ -205,7 +227,7 @@ export class Figure {
         // color error:
         if (this.colorPattern.length > 1) {
             this.colorPatternIndex = (this.colorPatternIndex + 1) % this.colorPattern.length;
-            wrongAnswers.push(new WrongAnswer(gridI, this.row, this.col, this.row, this.col, this.createDisplayable()));
+            wrongAnswers.push(new WrongAnswer(gridI, actualRow, actualCol, actualRow, actualCol, this.createDisplayable()));
             resetChanges();
         }
 
@@ -213,25 +235,27 @@ export class Figure {
         if (this.rotationPattern.length > 1) {
             // too much rotation
             this.rotationPatternIndex = (this.rotationPatternIndex + 1) % this.rotationPattern.length;
-            wrongAnswers.push(new WrongAnswer(gridI, this.row, this.col, this.row, this.col, this.createDisplayable()));
+            wrongAnswers.push(new WrongAnswer(gridI, actualRow, actualCol, actualRow, actualCol, this.createDisplayable()));
             resetChanges();
 
             // too little rotation
             this.rotationPatternIndex = (this.rotationPatternIndex - 1 + this.rotationPattern.length) % this.rotationPattern.length;
-            wrongAnswers.push(new WrongAnswer(gridI, this.row, this.col, this.row, this.col, this.createDisplayable()));
+            wrongAnswers.push(new WrongAnswer(gridI, actualRow, actualCol, actualRow, actualCol, this.createDisplayable()));
             resetChanges();
         }
 
         // extra step:
-        this.step();
-        wrongAnswers.push(new WrongAnswer(gridI, actualRow, actualCol, this.row, this.col, this.createDisplayable()));
+        this.move(1);
+        let [newRow, newCol] = this.movementEngine.getCords();
+        wrongAnswers.push(new WrongAnswer(gridI, actualRow, actualCol, newRow, newCol, this.createDisplayable()));
         resetChanges();
 
         // one less step:
         if (gridI == 4) {
             this.move();
+            [newRow, newCol] = this.movementEngine.getCords();
             // equal to making a move backward     ↓↓↓↓ for the next grid;                                     
-            wrongAnswers.push(new WrongAnswer(gridI + 1, this.row, this.col, actualRow, actualCol, this.createDisplayable()));
+            wrongAnswers.push(new WrongAnswer(gridI + 1, newRow, newCol, actualRow, actualCol, this.createDisplayable()));
             resetChanges();
         }
 

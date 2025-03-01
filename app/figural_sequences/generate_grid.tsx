@@ -128,22 +128,23 @@ export class GridGenerator {
         }
         const grid: Grid = this.grids[gridI];
 
-        if (grid[figure.row][figure.col] !== null) return false;
-        if (gridI != 0) {
-            figure.move();
-        }
-        if (grid[figure.row][figure.col] !== null) return false;
+        let [figureRow, figureCol] = figure.movementEngine.getCords();
 
-        grid[figure.row][figure.col] = figure.createDisplayable();
+        if (gridI > 0) {
+            figure.move();
+            [figureRow, figureCol] = figure.movementEngine.getCords();
+        }
+        if (grid[figureRow][figureCol] !== null) return false;
+
+        grid[figureRow][figureCol] = figure.createDisplayable();
 
         let wrongAnswers: WrongAnswer[] = [];
         if (gridI >= 4) {
             wrongAnswers = figure.generateWrongAnswers(gridI);
         }
-        const prevRow = figure.row;
-        const prevCol = figure.col;
+
         if (!this.tryPlaceObject(figure, gridI + 1)) {
-            grid[prevRow][prevCol] = null;
+            grid[figureRow][figureCol] = null;
             return false;
         }
 

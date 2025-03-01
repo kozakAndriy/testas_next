@@ -11,3 +11,14 @@ export function shuffle<T>(arr: Array<T>): Array<T> {
 export function randomOf<T>(arr: Array<T>): T {
     return arr[Math.floor(Math.random() * arr.length)];
 }
+
+export function contains(newRow: number, newCol: number, cords: [number, number][]): boolean {
+    let canAccess = false;
+    for (const [avR, avC] of cords) {
+        if (avR == newRow && avC == newCol) {
+            canAccess = true;
+            break;
+        }
+    }
+    return canAccess;
+}

@@ -133,6 +133,10 @@ export class GridGenerator {
         if (gridI > 0) {
             figure.move();
             [figureRow, figureCol] = figure.movementEngine.getCords();
+            console.log(figureRow, figureCol, 1);
+        }
+        else {
+            console.log(figureRow, figureCol, 2);
         }
         if (grid[figureRow][figureCol] !== null) return false;
 

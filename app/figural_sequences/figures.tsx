@@ -6,9 +6,9 @@ import { WrongAnswer } from "./generate_grid";
 export type Pattern = number[];
 export type Cord = [number, number];
 
-const rotationPatterns: Pattern[] = [[0], [0, 90, 180, 270], [0, 270, 180, 90], [0, 180],];
+const rotationPatterns: Pattern[] = [[0], [0, 90, 180, 270], [0, 270, 180, 90],];
 
-const colors: string[] = ["#007FFF", "#39FF14", "#FF5F00", "#FF1493", "#FFD700", "#DC143C", "#30D5C8", "#8000FF", "#32CD32", "#00FFFF"];
+const colors: string[] = ["#f20505", "#ffcd03", "#0bbf1a", "#11a2f0", "#1706d4", "#ed07d2", "#f7020f"];
 const colorPatterns: Pattern[] = [[0], [0, 1], [0, 1, 2]];
 
 interface MovementEngine {
@@ -22,13 +22,15 @@ class CircleMovementEngine implements MovementEngine {
     path: Cord[];
     pathI: number = -1;
 
-    constructor(availableStartCords: Cord[] | null, path: Cord[], pathI: number | null = null) {
-        if (pathI == null) {
+    constructor(availableStartCords: Cord[] | null, path: Cord[], pathI: number = -1) {
+        this.path = path.map(e => e).reverse();
+
+        if (pathI == -1) {
             let i: number = Math.floor(Math.random() * availableStartCords!.length);
             let [row, col] = availableStartCords![i];
 
-            for (let j = 0; j < path.length; j++) {
-                if (path[j][0] && row && path[j][1] == col) {
+            for (let j = 0; j < this.path.length; j++) {
+                if (this.path[j][0] == row && this.path[j][1] == col) {
                     this.pathI = j;
                     break;
                 }
@@ -37,10 +39,6 @@ class CircleMovementEngine implements MovementEngine {
         else {
             this.pathI = pathI!;
         }
-
-        this.path = path.map(e => e).reverse();
-
-        this.path = path;
     }
     getCords(): Cord {
         return this.path[this.pathI];
@@ -78,7 +76,7 @@ class BounceMovementEngine implements MovementEngine {
         return [this.row, this.col] as Cord;
     }
     clone(): BounceMovementEngine {
-        return new BounceMovementEngine(this.availableStartCords, this.availableCords, this.changePattern, this.row, this.col);
+        return new BounceMovementEngine(this.availableStartCords, this.availableCords, [...this.changePattern], this.row, this.col);
     }
     move(n: number): Cord {
         for (let i = 0; i < n; i++) {
@@ -100,36 +98,40 @@ class BounceMovementEngine implements MovementEngine {
         this.col += this.changePattern[1];
     }
 }
-const movementEngines: MovementEngine[] = [
-    new BounceMovementEngine( // diagonal bl <-> tr
-        [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
-        [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
-        [-1, 1],
-    ),
-    new BounceMovementEngine( // diagonal tl <-> br
-        [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
-        [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
-        [1, 1],
-    ),
-    new BounceMovementEngine( // left <-> right
-        [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
-        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
-        [0, 1],
-    ),
-    new BounceMovementEngine( // top <-> bottom
-        [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
-        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
-        [1, 0],
-    ),
-    new CircleMovementEngine( // small circle
-        [[1, 1], [1, 2], [2, 1], [2, 2]],
-        [[1, 1], [1, 2], [2, 2], [2, 1]],
-    ),
-    new CircleMovementEngine( // big circle
-        [[0, 1], [0, 2], [1, 0], [1, 3], [2, 0], [2, 3], [3, 1], [3, 2]], // cant start on edges because then it'll be undistinguishable from top-down
-        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [3, 2], [3, 1], [3, 0], [2, 0], [1, 0],],
-    ),
-];
+function getMovementEngine(): MovementEngine {
+    const movementEngines: MovementEngine[] = [
+        new BounceMovementEngine( // diagonal bl <-> tr
+            [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
+            [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2]],
+            [-1, 1],
+        ),
+        new BounceMovementEngine( // diagonal tl <-> br
+            [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
+            [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]],
+            [1, 1],
+        ),
+        new BounceMovementEngine( // left <-> right
+            [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
+            [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
+            [0, 1],
+        ),
+        new BounceMovementEngine( // top <-> bottom
+            [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2]], // cant start on edges
+            [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3]],
+            [1, 0],
+        ),
+        new CircleMovementEngine( // small circle
+            [[1, 1], [1, 2], [2, 1], [2, 2]],
+            [[1, 1], [1, 2], [2, 2], [2, 1]],
+        ),
+        new CircleMovementEngine( // big circle
+            [[0, 1], [0, 2], [1, 0], [1, 3], [2, 0], [2, 3], [3, 1], [3, 2]], // cant start on edges because then it'll be undistinguishable from top-down
+            [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [3, 2], [3, 1], [3, 0], [2, 0], [1, 0],],
+        ),
+    ];
+    return randomOf(movementEngines);
+}
+
 
 export class DisplayableFigure {
     base: FigureBase;
@@ -171,14 +173,14 @@ export class Figure {
 
     constructor(figureBase: FigureBase) {
         this.base = figureBase;
-        this.progressive = Math.random() >= unprogressiveChance ? 1 : 0;
+        this.progressive = Math.random() > unprogressiveChance ? 1 : 0;
 
-        const doesChangeColor = (this.base.canChangeColor && Math.random() >= colorlessChance);
+        const doesChangeColor = (this.base.canChangeColor && Math.random() > colorlessChance);
         this.colorPattern = doesChangeColor ? randomOf(colorPatterns.slice(1)) : colorPatterns[0];
         this.colors = doesChangeColor ? shuffle([...colors]).splice(3) : ["#36454F"];
 
         this.rotationPattern = (this.base.canRotate && Math.random() >= rotationlessChance) ? randomOf(rotationPatterns.slice(1)) : rotationPatterns[0];
-        this.movementEngine = randomOf(movementEngines);
+        this.movementEngine = getMovementEngine();
     }
     getColor(): string {
         return this.colors[this.colorPattern[this.colorPatternIndex]];
@@ -195,9 +197,9 @@ export class Figure {
         this.colorPatternIndex = (this.colorPatternIndex + 1) % this.colorPattern.length; // don't apply progressive to colors
         this.rotationPatternIndex = (this.rotationPatternIndex + moves) % this.rotationPattern.length;
 
-        for (let i = 0; i < moves; i++) {
-            this.movementEngine.move(moves);
-        }
+
+        this.movementEngine.move(moves);
+
         if (this.progressive != 0) {
             this.progressive++;
         }
